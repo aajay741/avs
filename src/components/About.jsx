@@ -261,7 +261,7 @@ const About = () => {
                                     e.currentTarget.style.transform = 'translateY(0)';
                                     e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.05)';
                                 }}>
-                                <img src="/src/assets/1770347971305.jpg" alt="AI Reflection" style={{ width: '100%', height: '180px', objectFit: 'cover' }} />
+                                <img src="/src/assets/Ai image.jpg" alt="AI Reflection" style={{ width: '100%', height: '180px', objectFit: 'cover' }} />
                                 <div style={{ padding: '25px', flex: 1 }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
                                         <div style={{ width: '35px', height: '35px', borderRadius: '50%', background: 'var(--primary-orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800' }}>K</div>
