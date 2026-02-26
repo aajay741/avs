@@ -2,6 +2,15 @@ import React from 'react';
 import { Camera, FileText, BookOpen, UserCheck, ShieldCheck, Globe } from 'lucide-react';
 
 const MediaAndPanels = () => {
+    const [dynamicMedia, setDynamicMedia] = React.useState([]);
+
+    React.useEffect(() => {
+        const savedMedia = localStorage.getItem('site_media');
+        if (savedMedia) {
+            setDynamicMedia(JSON.parse(savedMedia));
+        }
+    }, []);
+
     const mediaItems = [
         {
             icon: <Camera size={28} />,
@@ -177,45 +186,33 @@ const MediaAndPanels = () => {
                             <FileText style={{ color: 'var(--primary-orange)' }} size={24} /> Publications & Featured Articles
                         </h4>
                         <div className="grid grid-2" style={{ gap: '25px' }}>
-                            {publications.map((pub, i) => (
-                                pub.link ? (
-                                    <a key={i} href={pub.link} target="_blank" rel="noopener noreferrer" style={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        borderLeft: '3px solid var(--primary-orange)',
-                                        background: 'white',
-                                        padding: '15px 20px',
-                                        borderRadius: '12px',
-                                        boxShadow: '0 5px 15px rgba(0,0,0,0.02)',
-                                        textDecoration: 'none',
-                                        transition: '0.3s'
+                            {[...publications, ...(JSON.parse(localStorage.getItem('site_blogs')) || [])
+                                .filter(b => b.status === 'Published')
+                                .map(b => ({ title: b.title, platform: b.category, link: '#' }))
+                            ].map((pub, i) => (
+                                <a key={i} href={pub.link} target="_blank" rel="noopener noreferrer" style={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    borderLeft: '3px solid var(--primary-orange)',
+                                    background: 'white',
+                                    padding: '15px 20px',
+                                    borderRadius: '12px',
+                                    boxShadow: '0 5px 15px rgba(0,0,0,0.02)',
+                                    textDecoration: 'none',
+                                    transition: '0.3s'
+                                }}
+                                    onMouseOver={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(-3px)';
+                                        e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.05)';
                                     }}
-                                        onMouseOver={(e) => {
-                                            e.currentTarget.style.transform = 'translateY(-3px)';
-                                            e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.05)';
-                                        }}
-                                        onMouseOut={(e) => {
-                                            e.currentTarget.style.transform = 'translateY(0)';
-                                            e.currentTarget.style.boxShadow = '0 5px 15px rgba(0,0,0,0.02)';
-                                        }}
-                                    >
-                                        <span style={{ color: 'var(--dark-blue)', fontWeight: '700', fontSize: '1rem', marginBottom: '5px' }}>{pub.title}</span>
-                                        <span style={{ color: 'var(--primary-orange)', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase' }}>{pub.platform}</span>
-                                    </a>
-                                ) : (
-                                    <div key={i} style={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        borderLeft: '3px solid var(--primary-orange)',
-                                        background: 'white',
-                                        padding: '15px 20px',
-                                        borderRadius: '12px',
-                                        boxShadow: '0 5px 15px rgba(0,0,0,0.02)'
-                                    }}>
-                                        <span style={{ color: 'var(--dark-blue)', fontWeight: '700', fontSize: '1rem', marginBottom: '5px' }}>{pub.title}</span>
-                                        <span style={{ color: 'var(--primary-orange)', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase' }}>{pub.platform}</span>
-                                    </div>
-                                )
+                                    onMouseOut={(e) => {
+                                        e.currentTarget.style.transform = 'translateY(0)';
+                                        e.currentTarget.style.boxShadow = '0 5px 15px rgba(0,0,0,0.02)';
+                                    }}
+                                >
+                                    <span style={{ color: 'var(--dark-blue)', fontWeight: '700', fontSize: '1rem', marginBottom: '5px' }}>{pub.title}</span>
+                                    <span style={{ color: 'var(--primary-orange)', fontSize: '0.8rem', fontWeight: '800', textTransform: 'uppercase' }}>{pub.platform}</span>
+                                </a>
                             ))}
                         </div>
 
@@ -256,8 +253,65 @@ const MediaAndPanels = () => {
                     </div>
                 </div>
 
+                {/* Dynamic Media Gallery from Admin */}
+                <div style={{ marginTop: '80px', textAlign: 'center' }}>
+                    <p style={{
+                        color: 'var(--primary-orange)',
+                        fontWeight: '800',
+                        fontSize: '0.9rem',
+                        letterSpacing: '3px',
+                        marginBottom: '10px'
+                    }}>
+                        EXPLORE GALLERY
+                    </p>
+                    <h2 className="hero-title" style={{ fontSize: '2.8rem', marginBottom: '10px' }}>
+                        Recent Photos & Videos
+                    </h2>
+                    <div style={{ width: '60px', height: '4px', background: 'var(--primary-orange)', margin: '0 auto 40px auto' }}></div>
+
+                    <div className="grid grid-4" style={{ gap: '20px' }}>
+                        {dynamicMedia.length > 0 ? (
+                            dynamicMedia.map((item) => (
+                                <div key={item.id} className="reveal active" style={{
+                                    borderRadius: '16px',
+                                    overflow: 'hidden',
+                                    background: '#f8fafc',
+                                    border: '1px solid #e2e8f0',
+                                    transition: '0.3s',
+                                    boxShadow: '0 4px 12px rgba(0,0,0,0.03)'
+                                }}>
+                                    <div style={{ height: '180px', overflow: 'hidden', background: '#e2e8f0' }}>
+                                        {item.type === 'image' ? (
+                                            <img src={item.url} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        ) : item.type === 'video' ? (
+                                            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--dark-blue)', color: 'white' }}>
+                                                <Camera size={40} />
+                                            </div>
+                                        ) : (
+                                            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f1f5f9', color: 'var(--primary-orange)' }}>
+                                                <FileText size={40} />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div style={{ padding: '15px', textAlign: 'left' }}>
+                                        <p style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--dark-blue)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</p>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                                            <span style={{ fontSize: '0.7rem', color: 'var(--primary-orange)', fontWeight: '800', textTransform: 'uppercase' }}>{item.tag}</span>
+                                            <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>{item.date}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            <div style={{ gridColumn: '1 / -1', padding: '40px', background: '#f8fafc', borderRadius: '16px', border: '1px dashed #cbd5e1', color: '#64748b' }}>
+                                <p>No recent media items found. Upload images in the Admin Panel to show them here.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
                 {/* Professional Memberships Section */}
-                <div style={{ marginTop: '25px', textAlign: 'center' }}>
+                <div style={{ marginTop: '80px', textAlign: 'center' }}>
                     <p style={{
                         color: 'var(--primary-orange)',
                         fontWeight: '800',

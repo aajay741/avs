@@ -1,49 +1,31 @@
-import React, { useEffect } from 'react';
-import Navbar from './components/Navbar';
-import Hero from './components/Hero';
-import About from './components/About';
-import Services from './components/Services';
-
-import Testimonials from './components/Testimonials';
-import Enquiry from './components/Enquiry';
-import Footer from './components/Footer';
-
-import MediaAndPanels from './components/MediaAndPanels';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Home from './components/Home';
+import AdminLogin from './components/admin/AdminLogin';
+import AdminDashboard from './components/admin/AdminDashboard';
+import ProtectedRoute from './components/admin/ProtectedRoute';
 
 function App() {
-    useEffect(() => {
-        const observerOptions = {
-            threshold: 0.1
-        };
-
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('active');
-                }
-            });
-        }, observerOptions);
-
-        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-
-        return () => observer.disconnect();
-    }, []);
-
     return (
-        <div className="app-wrapper">
-            <Navbar />
-            <main>
-                <Hero />
-                <Services />
-                <About />
-                <MediaAndPanels />
+        <Router>
+            <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<Home />} />
 
-                <Testimonials />
-                <Enquiry />
-            </main>
-            <Footer />
-        </div>
+                {/* Admin Routes */}
+                <Route path="/admin/login" element={<AdminLogin />} />
+                <Route
+                    path="/admin/dashboard/*"
+                    element={
+                        <ProtectedRoute>
+                            <AdminDashboard />
+                        </ProtectedRoute>
+                    }
+                />
+            </Routes>
+        </Router>
     );
 }
 
 export default App;
+
