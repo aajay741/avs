@@ -1,14 +1,27 @@
 import React from 'react';
 import { Camera, FileText, BookOpen, UserCheck, ShieldCheck, Globe } from 'lucide-react';
+import { mediaAPI, blogsAPI } from '../api';
 
 const MediaAndPanels = () => {
     const [dynamicMedia, setDynamicMedia] = React.useState([]);
+    const [blogs, setBlogs] = React.useState([]);
 
     React.useEffect(() => {
-        const savedMedia = localStorage.getItem('site_media');
-        if (savedMedia) {
-            setDynamicMedia(JSON.parse(savedMedia));
-        }
+        const fetchDynamicData = async () => {
+            try {
+                const mediaRes = await mediaAPI.getPublicList('all');
+                if (mediaRes.success && mediaRes.data) {
+                    setDynamicMedia(mediaRes.data);
+                }
+                const blogsRes = await blogsAPI.getPublicList('');
+                if (blogsRes.success && blogsRes.data) {
+                    setBlogs(blogsRes.data);
+                }
+            } catch (e) {
+                console.error("Failed to fetch dynamic data", e);
+            }
+        };
+        fetchDynamicData();
     }, []);
 
     const mediaItems = [
@@ -186,8 +199,7 @@ const MediaAndPanels = () => {
                             <FileText style={{ color: 'var(--primary-orange)' }} size={24} /> Publications & Featured Articles
                         </h4>
                         <div className="grid grid-2" style={{ gap: '25px' }}>
-                            {[...publications, ...(JSON.parse(localStorage.getItem('site_blogs')) || [])
-                                .filter(b => b.status === 'Published')
+                            {[...publications, ...blogs
                                 .map(b => ({ title: b.title, platform: b.category, link: '#' }))
                             ].map((pub, i) => (
                                 <a key={i} href={pub.link} target="_blank" rel="noopener noreferrer" style={{

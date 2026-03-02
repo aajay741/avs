@@ -13,8 +13,11 @@ import {
     ArrowUpDown,
     MoreHorizontal,
     ExternalLink,
-    Check
+    Check,
+    Loader2,
+    AlertCircle
 } from 'lucide-react';
+import { mediaAPI } from '../../api';
 
 const MediaLibrary = () => {
     const [uploading, setUploading] = useState(false);
@@ -22,22 +25,31 @@ const MediaLibrary = () => {
     const [activeFilter, setActiveFilter] = useState('All');
     const [viewMode, setViewMode] = useState('grid');
     const [selectedItems, setSelectedItems] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [mediaItems, setMediaItems] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [error, setError] = useState('');
     const fileInputRef = useRef(null);
 
-    // Persist media to localStorage
-    const [mediaItems, setMediaItems] = useState(() => {
-        const saved = localStorage.getItem('site_media');
-        return saved ? JSON.parse(saved) : [
-            { id: 1, type: 'image', url: 'https://images.unsplash.com/photo-1518548419970-58e3b4079ab2', name: 'bali_beach_sunset.jpg', size: '1.2 MB', date: 'Oct 24, 2025', tag: 'Destinations' },
-            { id: 2, type: 'video', url: '#', name: 'dubai_drone_shot.mp4', size: '15.4 MB', date: 'Oct 23, 2025', tag: 'Promotional' },
-            { id: 3, type: 'image', url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a', name: 'travel_consultant_team.jpg', size: '0.8 MB', date: 'Oct 22, 2025', tag: 'Staff' },
-            { id: 4, type: 'image', url: 'https://images.unsplash.com/photo-1527661591475-527312dd65f5', name: 'switzerland_alps.jpg', size: '2.1 MB', date: 'Oct 21, 2025', tag: 'Packages' },
-        ];
-    });
+    // Fetch media from API
+    const fetchMedia = async () => {
+        try {
+            setLoading(true);
+            const filterMap = { 'All': 'all', 'Images': 'images', 'Videos': 'videos', 'Documents': 'documents' };
+            const result = await mediaAPI.list(filterMap[activeFilter] || 'all', searchTerm);
+            if (result.success) {
+                setMediaItems(result.data);
+            }
+        } catch (err) {
+            setError('Failed to load media: ' + err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        localStorage.setItem('site_media', JSON.stringify(mediaItems));
-    }, [mediaItems]);
+        fetchMedia();
+    }, [activeFilter, searchTerm]);
 
     const handleDrag = (e) => {
         e.preventDefault();
@@ -53,46 +65,48 @@ const MediaLibrary = () => {
         if (e.dataTransfer.files && e.dataTransfer.files[0]) handleFiles(e.dataTransfer.files);
     };
 
-    const handleFiles = (newFiles) => {
+    const handleFiles = async (newFiles) => {
         setUploading(true);
-        const filePromises = Array.from(newFiles).map(file => {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    resolve({
-                        id: Date.now() + Math.random(),
-                        type: file.type.startsWith('image') ? 'image' : (file.type.startsWith('video') ? 'video' : 'document'),
-                        url: reader.result, // This will be the Base64 string
-                        name: file.name,
-                        size: (file.size / (1024 * 1024)).toFixed(1) + ' MB',
-                        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-                        tag: 'Uncategorized'
-                    });
-                };
-                reader.readAsDataURL(file);
-            });
-        });
-
-        Promise.all(filePromises).then(newItems => {
-            setMediaItems(prev => [...newItems, ...prev]);
+        setError('');
+        try {
+            const result = await mediaAPI.upload(newFiles);
+            if (result.success) {
+                // Refresh the list from server
+                await fetchMedia();
+                if (result.errors?.length > 0) {
+                    setError('Some files had errors: ' + result.errors.join(', '));
+                }
+            }
+        } catch (err) {
+            setError('Upload failed: ' + err.message);
+        } finally {
             setUploading(false);
-        });
+        }
     };
 
-    const deleteItem = (id) => setMediaItems(mediaItems.filter(item => item.id !== id));
+    const deleteItem = async (id) => {
+        try {
+            const result = await mediaAPI.delete(id);
+            if (result.success) {
+                setMediaItems(mediaItems.filter(item => item.id !== id));
+                setSelectedItems(selectedItems.filter(i => i !== id));
+            }
+        } catch (err) {
+            setError('Delete failed: ' + err.message);
+        }
+    };
+
+    const deleteSelected = async () => {
+        for (const id of selectedItems) {
+            await deleteItem(id);
+        }
+        setSelectedItems([]);
+    };
 
     const toggleSelect = (id) => {
         if (selectedItems.includes(id)) setSelectedItems(selectedItems.filter(i => i !== id));
         else setSelectedItems([...selectedItems, id]);
     };
-
-    const filteredItems = activeFilter === 'All'
-        ? mediaItems
-        : mediaItems.filter(item => {
-            if (activeFilter === 'Images') return item.type === 'image';
-            if (activeFilter === 'Videos') return item.type === 'video';
-            return true;
-        });
 
     return (
         <div className="media-library-redesign">
@@ -113,6 +127,15 @@ const MediaLibrary = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Error Message */}
+            {error && (
+                <div className="error-banner">
+                    <AlertCircle size={16} />
+                    <span>{error}</span>
+                    <button onClick={() => setError('')}><X size={14} /></button>
+                </div>
+            )}
 
             {/* Upload Area */}
             <div
@@ -135,7 +158,7 @@ const MediaLibrary = () => {
                 {uploading ? (
                     <div className="upload-progress-container">
                         <div className="loader-ring"></div>
-                        <h3>Processing Assets...</h3>
+                        <h3>Uploading to Server...</h3>
                         <div className="progress-bar-bg">
                             <div className="progress-bar-fill"></div>
                         </div>
@@ -171,7 +194,12 @@ const MediaLibrary = () => {
                 <div className="toolbar-right flex items-center gap-4">
                     <div className="search-wrap">
                         <Search size={16} />
-                        <input type="text" placeholder="Filter by name..." />
+                        <input
+                            type="text"
+                            placeholder="Filter by name..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
                     </div>
                     <div className="tag-filter">
                         <Filter size={16} />
@@ -185,72 +213,85 @@ const MediaLibrary = () => {
                 <div className="selection-bar">
                     <span>{selectedItems.length} items selected</span>
                     <div className="selection-actions">
-                        <button className="sel-btn del"><Trash2 size={16} /> Delete</button>
+                        <button className="sel-btn del" onClick={deleteSelected}><Trash2 size={16} /> Delete</button>
                         <button className="sel-btn"><Edit2 size={16} /> Batch Tag</button>
                         <button className="sel-btn" onClick={() => setSelectedItems([])}>Cancel</button>
                     </div>
                 </div>
             )}
 
-            {/* Media Grid */}
-            <div className="media-modern-grid">
-                {filteredItems.map(item => (
-                    <div
-                        key={item.id}
-                        className={`media-asset-card ${selectedItems.includes(item.id) ? 'selected' : ''}`}
-                        onClick={() => toggleSelect(item.id)}
-                    >
-                        <div className="asset-preview">
-                            {item.type === 'image' ? (
-                                <img src={item.url} alt={item.name} loading="lazy" />
-                            ) : item.type === 'video' ? (
-                                <div className="video-thumb">
-                                    <Video size={40} />
-                                    <span className="duration">01:45</span>
-                                </div>
-                            ) : (
-                                <div className="video-thumb">
-                                    <FileText size={40} />
-                                    <span className="duration">PDF/DOC</span>
-                                </div>
-                            )}
+            {/* Loading State */}
+            {loading ? (
+                <div className="media-modern-grid">
+                    {Array(4).fill(0).map((_, i) => (
+                        <div key={i} className="skeleton-asset">
+                            <div className="skeleton-img pulse"></div>
+                            <div className="skeleton-lines">
+                                <div className="line-sm pulse"></div>
+                                <div className="line-xs pulse"></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                /* Media Grid */
+                <div className="media-modern-grid">
+                    {mediaItems.map(item => (
+                        <div
+                            key={item.id}
+                            className={`media-asset-card ${selectedItems.includes(item.id) ? 'selected' : ''}`}
+                            onClick={() => toggleSelect(item.id)}
+                        >
+                            <div className="asset-preview">
+                                {item.type === 'image' ? (
+                                    <img src={item.url} alt={item.name} loading="lazy" />
+                                ) : item.type === 'video' ? (
+                                    <div className="video-thumb">
+                                        <Video size={40} />
+                                        <span className="duration">Video</span>
+                                    </div>
+                                ) : (
+                                    <div className="video-thumb">
+                                        <FileText size={40} />
+                                        <span className="duration">PDF/DOC</span>
+                                    </div>
+                                )}
 
-                            <div className="asset-overlay">
-                                <div className="overlay-top">
-                                    <div className={`check-circle ${selectedItems.includes(item.id) ? 'checked' : ''}`}>
-                                        <Check size={12} />
+                                <div className="asset-overlay">
+                                    <div className="overlay-top">
+                                        <div className={`check-circle ${selectedItems.includes(item.id) ? 'checked' : ''}`}>
+                                            <Check size={12} />
+                                        </div>
+                                    </div>
+                                    <div className="overlay-actions">
+                                        <button className="act-btn"><Edit2 size={14} /></button>
+                                        <button className="act-btn" onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }}><Trash2 size={14} /></button>
+                                        <button className="act-btn"><ExternalLink size={14} /></button>
                                     </div>
                                 </div>
-                                <div className="overlay-actions">
-                                    <button className="act-btn"><Edit2 size={14} /></button>
-                                    <button className="act-btn"><Trash2 size={14} /></button>
-                                    <button className="act-btn"><ExternalLink size={14} /></button>
+
+                                <div className="asset-tag-badge">{item.tag}</div>
+                            </div>
+                            <div className="asset-info">
+                                <div className="info-main">
+                                    <span className="name">{item.name}</span>
+                                    <span className="date">{item.date}</span>
                                 </div>
+                                <span className="size">{item.size}</span>
                             </div>
+                        </div>
+                    ))}
 
-                            <div className="asset-tag-badge">{item.tag}</div>
+                    {/* Empty State */}
+                    {mediaItems.length === 0 && !loading && (
+                        <div className="empty-state" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 0' }}>
+                            <ImageIcon size={48} style={{ color: 'var(--text-muted)', marginBottom: 16 }} />
+                            <h3 style={{ color: 'var(--text-main)', marginBottom: 8 }}>No media files yet</h3>
+                            <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Upload your first files using the drop zone above.</p>
                         </div>
-                        <div className="asset-info">
-                            <div className="info-main">
-                                <span className="name">{item.name}</span>
-                                <span className="date">{item.date}</span>
-                            </div>
-                            <span className="size">{item.size}</span>
-                        </div>
-                    </div>
-                ))}
-
-                {/* Skeleton Loading State Placeholder */}
-                {mediaItems.length === 0 && Array(4).fill(0).map((_, i) => (
-                    <div key={i} className="skeleton-asset">
-                        <div className="skeleton-img pulse"></div>
-                        <div className="skeleton-lines">
-                            <div className="line-sm pulse"></div>
-                            <div className="line-xs pulse"></div>
-                        </div>
-                    </div>
-                ))}
-            </div>
+                    )}
+                </div>
+            )}
 
             <style>{`
                 .media-library-redesign {
@@ -260,6 +301,28 @@ const MediaLibrary = () => {
                 @keyframes slideUp {
                     from { opacity: 0; transform: translateY(20px); }
                     to { opacity: 1; transform: translateY(0); }
+                }
+
+                .error-banner {
+                    background: #fef2f2;
+                    border: 1px solid #fecaca;
+                    color: #dc2626;
+                    padding: 12px 16px;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    margin-bottom: 24px;
+                    font-size: 14px;
+                }
+
+                .error-banner button {
+                    margin-left: auto;
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    color: #dc2626;
+                    padding: 2px;
                 }
 
                 .text-muted { color: var(--text-muted); }

@@ -1,19 +1,30 @@
 import React, { useState } from 'react';
-import { Lock, User, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Lock, User, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { authAPI } from '../../api';
 
 const AdminLogin = () => {
     const [credentials, setCredentials] = useState({ username: '', password: '' });
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
     const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Placeholder for real auth logic
-        if (credentials.username === 'admin' && credentials.password === 'admin123') {
-            localStorage.setItem('isAdmin', 'true');
-            navigate('/admin/dashboard');
-        } else {
-            alert('Invalid credentials');
+        setLoading(true);
+        setError('');
+
+        try {
+            const result = await authAPI.login(credentials.username, credentials.password);
+            if (result.success) {
+                navigate('/admin/dashboard');
+            } else {
+                setError(result.error || 'Login failed');
+            }
+        } catch (err) {
+            setError(err.message || 'Unable to connect to server. Make sure XAMPP is running.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -25,8 +36,14 @@ const AdminLogin = () => {
                         <ShieldCheck size={32} />
                     </div>
                     <h1>Admin Portal</h1>
-                    <p>Secure access for Aerosafe Management</p>
+                    <p>Secure access for Site Management</p>
                 </div>
+
+                {error && (
+                    <div className="login-error">
+                        <span>{error}</span>
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit} className="login-form">
                     <div className="input-group">
@@ -37,6 +54,7 @@ const AdminLogin = () => {
                             value={credentials.username}
                             onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
                             required
+                            disabled={loading}
                         />
                     </div>
 
@@ -48,17 +66,22 @@ const AdminLogin = () => {
                             value={credentials.password}
                             onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
                             required
+                            disabled={loading}
                         />
                     </div>
 
-                    <button type="submit" className="login-button">
-                        Login to Dashboard <ArrowRight size={18} />
+                    <button type="submit" className="login-button" disabled={loading}>
+                        {loading ? (
+                            <>
+                                <Loader2 size={18} className="spin-icon" /> Authenticating...
+                            </>
+                        ) : (
+                            <>
+                                Login to Dashboard <ArrowRight size={18} />
+                            </>
+                        )}
                     </button>
                 </form>
-
-                <div className="login-footer">
-                    <p>© 2026 Aerosafe Travel & Tourism. All rights reserved.</p>
-                </div>
             </div>
 
             <style>{`
@@ -114,6 +137,17 @@ const AdminLogin = () => {
                     font-size: 14px;
                 }
 
+                .login-error {
+                    background: rgba(239, 68, 68, 0.1);
+                    border: 1px solid rgba(239, 68, 68, 0.3);
+                    color: #fca5a5;
+                    padding: 12px 16px;
+                    border-radius: 12px;
+                    font-size: 14px;
+                    margin-bottom: 20px;
+                    text-align: center;
+                }
+
                 .login-form {
                     display: flex;
                     flex-direction: column;
@@ -151,8 +185,9 @@ const AdminLogin = () => {
                     box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
                 }
 
-                .input-group input:focus + .input-icon {
-                    color: #3b82f6;
+                .input-group input:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
                 }
 
                 .login-button {
@@ -172,9 +207,22 @@ const AdminLogin = () => {
                     margin-top: 10px;
                 }
 
-                .login-button:hover {
+                .login-button:hover:not(:disabled) {
                     transform: translateY(-2px);
                     box-shadow: 0 10px 20px -5px rgba(59, 130, 246, 0.5);
+                }
+
+                .login-button:disabled {
+                    opacity: 0.8;
+                    cursor: not-allowed;
+                }
+
+                .spin-icon {
+                    animation: spin 1s linear infinite;
+                }
+
+                @keyframes spin {
+                    100% { transform: rotate(360deg); }
                 }
 
                 .login-footer {

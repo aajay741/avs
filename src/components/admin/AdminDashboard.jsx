@@ -20,13 +20,17 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import MediaLibrary from './MediaLibrary';
 import BlogManagement from './BlogManagement';
+import InquiriesPanel from './InquiriesPanel';
+import DashboardOverview from './DashboardOverview';
+import { authAPI } from '../../api';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-    const [activeTab, setActiveTab] = useState('media'); // Setting media as default for the redesign focus
+    const [activeTab, setActiveTab] = useState('overview');
     const [darkMode, setDarkMode] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const currentUser = authAPI.getUser();
 
     useEffect(() => {
         const handleScroll = () => {
@@ -36,8 +40,8 @@ const AdminDashboard = () => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    const handleLogout = () => {
-        localStorage.removeItem('isAdmin');
+    const handleLogout = async () => {
+        await authAPI.logout();
         navigate('/admin/login');
     };
 
@@ -56,14 +60,11 @@ const AdminDashboard = () => {
                 return <MediaLibrary />;
             case 'blogs':
                 return <BlogManagement />;
+            case 'inquiries':
+                return <InquiriesPanel />;
             case 'overview':
             default:
-                return (
-                    <div className="placeholder-section">
-                        <h1>Dashboard Overview</h1>
-                        <p>Welcome back! This section is currently under development.</p>
-                    </div>
-                );
+                return <DashboardOverview />;
         }
     };
 
@@ -79,7 +80,7 @@ const AdminDashboard = () => {
                 <div className="sidebar-header">
                     <div className="brand-logo">
                         <div className="logo-icon">A</div>
-                        <span className="brand-name">Aerosafe <span>Admin</span></span>
+                        <span className="brand-name">AVS <span>Admin</span></span>
                     </div>
                 </div>
 
@@ -150,10 +151,10 @@ const AdminDashboard = () => {
                             <span className="badge" />
                         </button>
                         <div className="user-dropdown">
-                            <div className="avatar">A</div>
+                            <div className="avatar">{currentUser?.full_name?.[0] || 'A'}</div>
                             <div className="user-info">
-                                <span className="name">Arun Kumar</span>
-                                <span className="role">Super Admin</span>
+                                <span className="name">{currentUser?.full_name || 'Admin'}</span>
+                                <span className="role">{currentUser?.role === 'super_admin' ? 'Super Admin' : currentUser?.role || 'Admin'}</span>
                             </div>
                             <ChevronDown size={14} className="dropdown-arrow" />
                         </div>
